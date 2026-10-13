@@ -5,7 +5,11 @@ All notable changes to `dn` are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Each release's notes are its
 section below.
 
-## [0.1.0] - Unreleased
+## [0.1.1] - 2026-10-13
+
+- Builds for 32-bit ARM Linux: `armv7` for a Raspberry Pi 2 or later on a 32-bit system, and `armv6` for the Pi Zero and Pi 1, as archives, and a `.deb` (`armhf`) and `.rpm` package that run on every Pi. The install script picks the right archive.
+
+## [0.1.0] - 2026-10-13
 
 The first release of `dn`, the DecisionNode command line.
 

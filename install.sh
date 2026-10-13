@@ -36,6 +36,9 @@ detect_platform() {
   case "$(uname -m)" in
     x86_64|amd64)  arch="amd64" ;;
     arm64|aarch64) arch="arm64" ;;
+    # 32-bit ARM: armv8l is a 64-bit core running a 32-bit system
+    armv7l|armv7*|armv8l) arch="armv7" ;;
+    armv6l|armv6*) arch="armv6" ;;
     *) fail "unsupported architecture $(uname -m)" ;;
   esac
 }

@@ -1,5 +1,7 @@
 # dn
 
+[DecisionNode](https://decisionnode.com) is a decision engine: send it text, JSON or images with a question, and it answers with calibrated probabilities.
+
 The DecisionNode command line. Ask a yes-or-no, choice, score or number question about any text, JSON, image or video, from a terminal, a shell script or a pipeline; run a live session over a stream of readings; or send thousands of requests through the Batch API at half the price.
 
 ```sh
@@ -32,7 +34,7 @@ scoop bucket add bynn https://github.com/Bynn-Intelligence/scoop-bynn
 scoop install dn
 ```
 
-**Direct download.** Every [release](https://github.com/Bynn-Intelligence/decision-node-cli/releases/latest) has an archive for macOS (arm64, x86-64), Linux (arm64, x86-64, static) and Windows (x86-64, arm64), `.deb` and `.rpm` packages, `checksums.txt`, and a signature of the checksums.
+**Direct download.** Every [release](https://github.com/Bynn-Intelligence/decision-node-cli/releases/latest) has an archive for macOS (arm64, x86-64), Linux (arm64, x86-64, and 32-bit ARM: armv7 and armv6, static) and Windows (x86-64, arm64), `.deb` and `.rpm` packages, `checksums.txt`, and a signature of the checksums.
 
 ## Set your API key
 
