@@ -5,6 +5,21 @@ All notable changes to `dn` are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Each release's notes are its
 section below.
 
+## [0.2.2] - 2026-10-15
+
+- A Depth Vision reading with other than seven directions is shown as it was sent, as JSON, rather than in words.
+
+## [0.2.1] - 2026-10-15
+
+- Depth Vision and Segment Vision: `--booster bynn_depth` with `--depth-grid`, and `--booster bynn_segment` with `--segment-prompt`; on a terminal their readings are written out: the distance straight ahead and in seven directions, and each match with its score, centre and distance.
+- `--ocr-prompt`, `--face-collection` and `--face-threshold` are listed in the help, and the README lists every booster.
+
+## [0.2.0] - 2026-10-14
+
+- `dn usage key` and `dn usage list`: each key's usage and cost for a period, by hour, day or month and by model or channel, filtered by label, device, key, kind and status, with `--all` to read every page.
+- `dn keys`: make, list, change and revoke Decisions-only keys for your devices with a Manage device keys key, and revoke a group by label, counted first with `--dry-run`.
+- An error whose answer has `details` prints them, such as the models a publishable key may ask or when a key's daily spend cap resets. A key's spent daily cap is not retried.
+
 ## [0.1.1] - 2026-10-13
 
 - Builds for 32-bit ARM Linux: `armv7` for a Raspberry Pi 2 or later on a 32-bit system, and `armv6` for the Pi Zero and Pi 1, as archives, and a `.deb` (`armhf`) and `.rpm` package that run on every Pi. The install script picks the right archive.

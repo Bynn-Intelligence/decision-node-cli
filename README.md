@@ -2,7 +2,7 @@
 
 [DecisionNode](https://decisionnode.com) is a decision engine: send it text, JSON or images with a question, and it answers with calibrated probabilities.
 
-The DecisionNode command line. Ask a yes-or-no, choice, score or number question about any text, JSON, image or video, from a terminal, a shell script or a pipeline; run a live session over a stream of readings; or send thousands of requests through the Batch API at half the price.
+The DecisionNode command line. Ask a yes-or-no, choice, score or number question about any text, JSON, image or video, from a terminal, a shell script or a pipeline; run a live session over a stream of readings; or send thousands of requests through the Batch API for less (Flash 50% off the live price, DecisionNode MoE 30% off).
 
 ```sh
 $ dn truth "Is this message a refund request?" -s "I want my money back for order 4411."
@@ -77,7 +77,7 @@ dn truth 'Is the person in `selfie` an adult?' --image selfie.jpg --booster age
 # Several questions about one state: the full request as JSON.
 cat request.json | dn decide - | jq '.answers.route.choice'
 
-# A file of records through the Batch API: half the price, results within 24 hours.
+# A file of records through the Batch API, for less, with no set time to finish.
 dn batch run tickets.jsonl --questions questions.json --out results.jsonl
 
 # The same file as live calls, for answers now.
@@ -100,6 +100,8 @@ tail -f readings.jsonl | dn session open.json
 | `dn session <open.json>` | A live session: frames as JSON Lines on stdin, replies on stdout. See [Sessions](#sessions). `dn session end ID` ends one from another terminal. |
 | `dn batch run <requests.jsonl \| ->` | Many requests, one a line, through the Batch API, or as live calls with `--live`. See [Batch](#batch). |
 | `dn batch create \| add \| finalize \| get \| list \| results \| cancel` | The Batch API's calls one by one, each printing the API's batch object, page or result lines exactly as sent; result lines are printed as they arrive. |
+| `dn usage key <key_id> \| list` | Each key's usage and cost for a period: one key, or a page of keys filtered by `--label name:value`, `--device-id`, `--key-id`, `--scope` and `--status` (`--all` prints every page, one a line). `--granularity` adds hourly, daily or monthly buckets and `--group-by` splits by model or channel. Each prints the API's object as sent. |
+| `dn keys create \| list \| update \| revoke \| revoke-by-labels` | Decisions-only keys for your devices, with a Manage device keys key on your provisioning server: make one with its own `--label`s, `--rps` and `--tps`, `--daily-cap` and `--expires-at` (`create` prints its secret once; send the same `--idempotency-key` for the same device so a retry makes no second key), find them by label or device, change and revoke them, or revoke a whole group by its labels (`--dry-run` counts them first). |
 | `dn models` | The models your key may use, with their limits, your fine-tuned models included (with `fine_tuned`, `base`, `adapter_version` and `status`). |
 | `dn auth login \| status \| logout` | Store, check and remove the API key. |
 | `dn config get \| set \| list` | The stored base URL, model and profiles. |
@@ -158,7 +160,19 @@ Videos: `--video PATH` or `--video ID=PATH`, up to 4, for `truth`, `choice`, `sc
 - `--fps` caps the rate (default 2, at most 4). `--start` and `--end` choose the window, in seconds from the video's first frame (default the whole video). `--max-frames` caps the frames taken from each file (default 32, at most 128); when the window holds more, the first ones are sent and a note on stderr says so. The same settings apply to every `--video` of the command.
 - When the API reads a video at a lower rate or resolution than sent, it says so, and `dn` prints its words on stderr.
 
-Boosters: `--booster NAME`, up to 4, for `truth`, `choice`, `score`, `number` and `decide`. A booster is a specialist model that reads the request's images before the decision; its reading is added to what the model sees as evidence. `age` reads how old the person in a picture is (the largest face), and `ai_generated` how likely a picture was made by an image generator, and who signed its Content Credentials. `NAME:required` makes the request fail (exit 6) when that booster fails or does not answer in time; otherwise the decision runs without the reading, and the evidence says why. A request file may carry `boosters` as the API takes them (a name, or `{"name": ..., "require": true}`), and so may the lines and the questions file of `dn batch`; sessions take none.
+Boosters: `--booster NAME`, up to 4, for `truth`, `choice`, `score`, `number` and `decide`. A booster is a specialist model that reads the request's images before the decision; its reading is added to what the model sees as evidence.
+
+| Booster | Reads | Option flags |
+|---|---|---|
+| `age` | How old the person in a picture is (the largest face) | |
+| `ai_generated` | How likely a picture was made by an image generator, and who signed its Content Credentials | |
+| `face_detection` | The faces in a picture, each with its box and confidence | |
+| `face_recognition` | The faces in a picture that match a collection of faces | `--face-collection` (a public collection's name or your collection's id), `--face-threshold` (0 to 1, default 0.5) |
+| `ocr` | The text in a picture, or the answer to a prompt about it | `--ocr-prompt` |
+| `bynn_depth` (Depth Vision) | Distance in meters: the nearest obstacle straight ahead (the floor left out), seven directions from left to right, and a grid | `--depth-grid` (2 to 16 cells a side, default 8) |
+| `bynn_segment` (Segment Vision) | What you name, found in the picture: each match's outline, box and centre, and its distance and size in meters | `--segment-prompt` (required; repeat it for up to 4 phrases of at most 120 characters) |
+
+Depth Vision's and Segment Vision's distances and sizes are estimates from one picture, for decisions and planning, never a safety stop. Segment Vision's other settings (`max_instances`, `min_score`, `polygon_points`, `depth`) go in a request file's `boosters` for `dn decide`. `NAME:required` makes the request fail (exit 6) when that booster fails or does not answer in time; otherwise the decision runs without the reading, and the evidence says why. A request file may carry `boosters` as the API takes them (a name, or `{"name": ..., "require": true}`), and so may the lines and the questions file of `dn batch`; sessions take none.
 
 ```sh
 $ dn truth 'Is the person in `selfie` an adult?' --image selfie.jpg --booster age --booster ai_generated
@@ -174,6 +188,16 @@ A booster that must read for the decision to stand is given as `NAME:required`:
 
 ```sh
 dn truth 'Is the person in `selfie` an adult?' --image selfie.jpg --booster age:required
+```
+
+```sh
+$ dn truth 'Is there a landing pad ahead?' --image front.jpg --booster bynn_depth --booster bynn_segment --segment-prompt 'landing pad'
+truth           0.88
+evidence
+  bynn_depth    ok, 40 ms, bynn_depth-v1, 1 call billed
+    front       ahead 3.21 m, by direction 5.12 4.03 none 2.81 6.02 7.15 9.33, floor left out; nearest 1.01, farthest 14.98, median 4.37; 8x8 grid
+  bynn_segment  ok, 60 ms, bynn_segment-v1, 1 call billed
+    front       1 found: "landing pad" 0.3 at (0.15, 0.15) 6.4 m away
 ```
 
 An `ai_generated` reading names a top generator only when the picture reads as likely generated, and shows `c2pa untrusted` when the file carries Content Credentials that are not trusted. A picture a booster did not read (it timed out or failed) shows as `unread`, and one it could not decode as `unreadable`; neither is billed. On a terminal the readings are printed after the answers; in JSON they are in the response body, which `--full` prints (and `dn decide` always prints). Booster calls are billed one per booster and image read with status `ok`, at the price per call on [Pricing](https://decisionnode.com/docs/pricing#boosters), a reading the API had already made for your workspace included; a booster that timed out or failed is free. Each booster's line shows the calls billed for it; `--meta` shows the readings' tokens, the calls billed in all and each booster's status and time.
@@ -214,7 +238,7 @@ An error is a sentence on stderr when stderr is a terminal, and one JSON object 
 {"error":{"status":422,"error_type":null,"message":"...","reason":"...","request_id":"..."}}
 ```
 
-`error_type` is the API's own, exactly as it sends it, and `null` when its answer has none, so a fault reads the same whether `dn` caught it before sending or the API refused it (where nothing was received, it is `timeout_error`, `connection_error` or `invalid_response`). `reason` is the server's explanation in words. An error whose body is not the API's JSON (a page from a proxy or the service's edge) has `error_type` `null` and the message `HTTP <status> <text>`, such as `HTTP 413 Content Too Large`, with the request id after it when there is one. A refusal also carries `category` and `safety`; a rate limit carries `retry_after` in seconds; an error of a request with boosters carries `boosters`, each booster's status and time, so you can see which required booster failed.
+`error_type` is the API's own, exactly as it sends it, and `null` when its answer has none, so a fault reads the same whether `dn` caught it before sending or the API refused it (where nothing was received, it is `timeout_error`, `connection_error` or `invalid_response`). `reason` is the server's explanation in words. An error whose body is not the API's JSON (a page from a proxy or the service's edge) has `error_type` `null` and the message `HTTP <status> <text>`, such as `HTTP 413 Content Too Large`, with the request id after it when there is one. A refusal also carries `category` and `safety`; a rate limit carries `retry_after` in seconds; an error whose answer has `details` carries them as sent, such as the models a publishable key may ask or when a key's daily spend cap resets; an error of a request with boosters carries `boosters`, each booster's status and time, so you can see which required booster failed.
 
 | Exit code | Meaning |
 |---|---|
@@ -239,7 +263,7 @@ dn batch run tickets.jsonl --questions questions.json --out results.jsonl
 - **Input:** JSON Lines. Each line is a full request, or, with `--questions FILE`, only a state: any JSON value, or an object with `id` and `state`. The questions file is a JSON object of questions, or a request without a state (its `model`, `images` and `boosters` are used too). A line's `id` is copied to its result and not sent. An image in a line may be a file path, as with `--image`.
 - **Output:** one line per input line, in input order, to stdout or `--out FILE`:
   `{"index":0,"id":"t-1","response":{...}}` or `{"index":1,"id":null,"error":{...}}`.
-- **The Batch API** (the default): `dn` checks every line, creates the batch with every line in one call, queues it, reads it every `--poll` seconds (default 60, at least 10, or the wait the server names when longer) until it has ended, and writes each result as it arrives. Half the price of live calls; results within 24 hours. A line that expired or was cancelled is an `error` whose `status` is `"expired"` or `"cancelled"`. `--no-wait` prints the batch once it is queued and exits; fetch the results later with `dn batch results ID`. A line the API would refuse for its form, or a line id that is repeated or longer than 512 characters, stops the run before anything is sent (exit 2, naming the line).
+- **The Batch API** (the default): `dn` checks every line, creates the batch with every line in one call, queues it, reads it every `--poll` seconds (default 60, at least 10, or the wait the server names when longer) until it has ended, and writes each result as it arrives. Flash 50% off the live price, DecisionNode MoE 30% off. A batch has no set time to finish; a request not answered 24 hours after the batch is queued expires and is not billed. A line that expired or was cancelled is an `error` whose `status` is `"expired"` or `"cancelled"`. `--no-wait` prints the batch once it is queued and exits; fetch the results later with `dn batch results ID`. A line the API would refuse for its form, or a line id that is repeated or longer than 512 characters, stops the run before anything is sent (exit 2, naming the line).
 - **Live calls** (`--live`): one call per line, `--concurrency N` in flight (default 8). When the server answers 429 with a wait, no new line starts until the wait is over. `--resume` reads `--out`, skips the lines already answered and appends the rest.
 - **One call at a time:** `dn batch create [FILE]`, `add ID FILE`, `finalize ID`, `get ID`, `list [--offset N] [--limit N]`, `results ID [--out FILE]` and `cancel ID` print the API's batch object, page or result lines exactly as sent, the result lines one by one as they arrive, for scripts that manage batches themselves.
 - Progress goes to stderr, on a terminal only. A failed line does not stop the run. The exit code is 7 when any line failed, else 0.
