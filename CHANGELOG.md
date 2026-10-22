@@ -5,6 +5,14 @@ All notable changes to `dn` are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Each release's notes are its
 section below.
 
+## [0.3.0] - 2026-10-22
+
+- Knowledge: keep your own policies, procedures and briefs in a knowledge base, and have a decision apply them. `dn collections create NAME --type text` makes one, with `--scope-key` to scope documents to a mission, a site or a customer.
+- `dn documents add` adds documents from files (text, Markdown, PDF, Word, PowerPoint, Excel, HTML and images), several at once or by a pattern, or Markdown from stdin, with `--title`, `--reference`, `--pinned`, `--pin-rank`, `--label` and `--metadata`; `--wait` waits until they are ready and shows the progress. `dn documents replace`, `update` (pin or unpin, retitle), `upload`, `get` (with `--text`), `list` (with `--search` and `--sort`), `chunks`, `wait`, `delete` and `delete-failed` manage them.
+- `--knowledge COLLECTION` on `truth`, `choice`, `score`, `number` and `decide`, with `--knowledge-scope`, `--knowledge-top-k`, `--knowledge-query` and `--knowledge-text`, adds the knowledge booster; `COLLECTION:required` fails the request without its passages. On a terminal the passages are printed after the answer with their titles, scores and where they come from.
+- `dn search` prints the passages a knowledge base gives for a query, with their text, without a decision.
+- `dn collections` is listed in the help.
+
 ## [0.2.2] - 2026-10-15
 
 - A Depth Vision reading with other than seven directions is shown as it was sent, as JSON, rather than in words.

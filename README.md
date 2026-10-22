@@ -2,7 +2,7 @@
 
 [DecisionNode](https://decisionnode.com) is a decision engine: send it text, JSON or images with a question, and it answers with calibrated probabilities.
 
-The DecisionNode command line. Ask a yes-or-no, choice, score or number question about any text, JSON, image or video, from a terminal, a shell script or a pipeline; run a live session over a stream of readings; or send thousands of requests through the Batch API for less (Flash 50% off the live price, DecisionNode MoE 30% off).
+The DecisionNode command line. Ask a yes-or-no, choice, score or number question about any text, JSON, image or video, from a terminal, a shell script or a pipeline; have the decision apply your own policies and documents from a knowledge base; run a live session over a stream of readings; or send thousands of requests through the Batch API for less (Flash 50% off the live price, DecisionNode MoE 30% off).
 
 ```sh
 $ dn truth "Is this message a refund request?" -s "I want my money back for order 4411."
@@ -74,6 +74,11 @@ dn truth "Does a person fall?" --video dock.mp4 --end 60
 # A booster reads the picture first and its reading is added as evidence.
 dn truth 'Is the person in `selfie` an adult?' --image selfie.jpg --booster age
 
+# Your own documents in a knowledge base, and a decision that applies them.
+dn collections create "Claims policy" --type text
+dn documents add col_3f6c1a9e0b2d4c7f8a1e5d9b2c4f6a80 claims-policy.pdf --wait
+dn truth "Should the claim be approved under our policy?" -f claim.json --knowledge col_3f6c1a9e0b2d4c7f8a1e5d9b2c4f6a80
+
 # Several questions about one state: the full request as JSON.
 cat request.json | dn decide - | jq '.answers.route.choice'
 
@@ -100,6 +105,9 @@ tail -f readings.jsonl | dn session open.json
 | `dn session <open.json>` | A live session: frames as JSON Lines on stdin, replies on stdout. See [Sessions](#sessions). `dn session end ID` ends one from another terminal. |
 | `dn batch run <requests.jsonl \| ->` | Many requests, one a line, through the Batch API, or as live calls with `--live`. See [Batch](#batch). |
 | `dn batch create \| add \| finalize \| get \| list \| results \| cancel` | The Batch API's calls one by one, each printing the API's batch object, page or result lines exactly as sent; result lines are printed as they arrive. |
+| `dn collections create \| list \| get \| delete` | Knowledge bases (`create NAME --type text`, with `--scope-key KEY` to scope documents to a mission, a site or a customer) and collections of faces. See [Knowledge](#knowledge). |
+| `dn documents add \| replace \| update \| upload \| get \| list \| chunks \| wait \| delete \| delete-failed` | A knowledge base's documents: add files, patterns or Markdown from stdin (`--wait` waits until they are ready), pin or unpin one, read one with `--text`, list them (`--search` by title, reference or file name, `--sort newest|oldest|title`), see how one was cut into chunks, and delete one or every failed one. |
+| `dn search <collection_id> <query>` | The passages of a knowledge base a decision would be given for a query, with their text, without a decision. |
 | `dn usage key <key_id> \| list` | Each key's usage and cost for a period: one key, or a page of keys filtered by `--label name:value`, `--device-id`, `--key-id`, `--scope` and `--status` (`--all` prints every page, one a line). `--granularity` adds hourly, daily or monthly buckets and `--group-by` splits by model or channel. Each prints the API's object as sent. |
 | `dn keys create \| list \| update \| revoke \| revoke-by-labels` | Decisions-only keys for your devices, with a Manage device keys key on your provisioning server: make one with its own `--label`s, `--rps` and `--tps`, `--daily-cap` and `--expires-at` (`create` prints its secret once; send the same `--idempotency-key` for the same device so a retry makes no second key), find them by label or device, change and revoke them, or revoke a whole group by its labels (`--dry-run` counts them first). |
 | `dn models` | The models your key may use, with their limits, your fine-tuned models included (with `fine_tuned`, `base`, `adapter_version` and `status`). |
@@ -212,6 +220,61 @@ any_damage  truth  0.93
 ```
 
 A point is `x y` from the top-left corner of the image, a box its top-left and bottom-right corners `x1 y1 x2 y2`. `present` is the probability that what the instructions describe is in the image at all, and `confidence` that the place is right if it is there. `image`, `width` and `height` name the image and its size in pixels. In JSON the answers are printed as the API sent them.
+
+## Knowledge
+
+A knowledge base holds your own documents: policies, procedures, product sheets, mission briefs. A decision that names it with `--knowledge` is given the passages that apply, and applies their facts and rules to its answer. The reading lists each passage with its document, so every answer can be traced to the text it used.
+
+**1. Create a knowledge base.**
+
+```sh
+$ dn collections create "Claims policy" --type text
+{"id":"col_3f6c1a9e0b2d4c7f8a1e5d9b2c4f6a80","type":"text","name":"Claims policy",...}
+```
+
+**2. Add documents**, from files, a pattern, or Markdown on stdin. A file is converted to text, cut into passages and indexed. This takes a moment: a new document is `queued`, then `processing`, then `ready` (or `failed`, with its `error`). `--wait` waits until each is ready and shows the progress on stderr; `dn documents wait` waits for documents added before. Once a version is ready only its text is kept: the original file is deleted.
+
+```sh
+dn documents add col_3f6c1a9e0b2d4c7f8a1e5d9b2c4f6a80 claims-policy.pdf 'handbook/*.md' --wait
+cat rules.md | dn documents add col_3f6c1a9e0b2d4c7f8a1e5d9b2c4f6a80 - --title "House rules"
+dn documents list col_3f6c1a9e0b2d4c7f8a1e5d9b2c4f6a80
+```
+
+Each document is printed as the API sent it, one a line. `--title` (default: the file name without its extension) and `--reference` (your own key for the document) name one document; `--label`, `--metadata` and `--pinned` apply to every document of the command. A small text or Markdown file is sent as text in one call; every other file is uploaded first. `dn documents upload` uploads files ahead and prints their upload ids, which `dn documents add --upload-id` names within the hour. `dn documents replace` sends a new version of a document; the version that serves keeps serving until the new one is ready. `dn documents update` pins or unpins a document (`--pinned`, `--pinned=false`, `--pin-rank`) or changes its title, reference, label or metadata.
+
+**3. Pin a rule that must always apply**, and scope documents to a mission. A pinned document is given to every decision that names the knowledge base, before any passage found by search. A knowledge base created with `--scope-key mission` scopes each document whose `--metadata` holds a `mission`; a decision names the scope with `--knowledge-scope` and is given that mission's documents and those with no scope.
+
+```sh
+echo "Reject any claim over 500 SEK without a receipt." | \
+  dn documents add col_3f6c1a9e0b2d4c7f8a1e5d9b2c4f6a80 - --title "Receipts rule" --pinned
+
+dn collections create "Mission briefs" --type text --scope-key mission
+dn documents add col_9a8b7c6d5e4f30211a2b3c4d5e6f7a8b brief-m42.docx --metadata '{"mission":"M-42"}'
+```
+
+**4. Decide with it.** `--knowledge COLLECTION` on `truth`, `choice`, `score`, `number` and `decide` adds the `knowledge` booster; `--knowledge-scope`, `--knowledge-top-k` (the most passages found by search, 0 to 20, default 4; 0 gives the pinned documents only) and `--knowledge-query` (what to search for, instead of the query built from the questions and the state) are its options, and `--knowledge-text` adds each passage's text to the reading (it needs a full access key). On a terminal the passages are printed after the answer: the number the model saw, `pinned` or the passage's score, its title and heading, its reference, its document, chunk and byte offsets.
+
+```sh
+$ dn truth "Should the claim be approved under our policy?" -f claim.json --knowledge col_3f6c1a9e0b2d4c7f8a1e5d9b2c4f6a80
+truth        0.08
+evidence
+  knowledge  ok, 141 ms, knowledge-v1, 1 call billed
+             2 passages from Claims policy
+    1        pinned, "Receipts rule" (receipts-rule), itm_0b2d4c7f8a1e5d9b2c4f6a803f6c1a9e chunk 0, bytes 0 to 48
+    2        0.8123, "Claims policy 2026" > "Receipts" (policy-2026), itm_5d9b2c4f6a803f6c1a9e0b2d4c7f8a1e chunk 3, bytes 1840 to 2310
+```
+
+`byte_start` and `byte_end` are UTF-8 byte offsets into the document's stored text, end exclusive: `dn documents get COLLECTION ITEM --text` prints that text. `dn documents chunks` shows how a document was cut. In JSON the reading is in the response body as the API sent it (`--full`, and `dn decide`), under `evidence.knowledge`. A request file for `dn decide` or a `dn batch` line may carry the booster as the API takes it, with every option: `{"name": "knowledge", "options": {"collection": "col_...", "scope": "M-42", "match": {"region": "SE"}}}`.
+
+**5. Search without a decision** to see which passages a query finds, with their text. A search is billed as one knowledge call and needs a full access key.
+
+```sh
+dn search col_3f6c1a9e0b2d4c7f8a1e5d9b2c4f6a80 "Is a receipt needed for a 740 SEK claim?" --top-k 8
+```
+
+**6. Errors.** `--knowledge COLLECTION:required` makes the decision fail rather than run without the passages. While no document is ready yet but some are processing, the API answers 529 with `Retry-After: 5`, which `dn` retries (exit 6 if it still fails); when ingestion has been delayed for more than 15 minutes the 529 says `ingestion_delayed` and is not retried (exit 6). A knowledge base with no ready document and none processing answers 409 `knowledge_collection_empty` (exit 5), whose `details` count the documents and the failed ones. Adding documents faster than they are processed can answer 429 with a wait, which `dn` honours (exit 6 after the retries). A document whose text is over 512 KiB once extracted is refused with 413 `item_too_large` (exit 5). A document that failed processing stays listed with its `error` until you delete it; `dn documents delete-failed COLLECTION` deletes every failed one.
+
+**7. Files and limits.** Text (`.txt`), Markdown (`.md`), PDF, Word (`.docx`), PowerPoint (`.pptx`), Excel (`.xlsx`), HTML, and PNG, JPEG, TIFF and WebP images. Up to 50 MB a file, 100 pages a PDF, and 512 KiB of text once extracted. A file's type is taken from its extension, else from its first bytes. Every document of a command is checked first (its file's type and size, its fields), and a fault exits 2 before anything is sent. Knowledge calls are billed per call, at the price on [Pricing](https://decisionnode.com/docs/pricing#boosters); the passages' tokens are input tokens.
 
 ## Output
 
