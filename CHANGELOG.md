@@ -5,6 +5,11 @@ All notable changes to `dn` are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Each release's notes are its
 section below.
 
+## [0.4.0] - 2026-11-27
+
+- The image and video shares of the input tokens, so you can bill or budget vision tokens at your own price: a decision's `usage` in JSON (`dn decide`, and `--full`) carries `image_tokens` and `video_tokens` after `input_tokens`, and `--meta` shows them, each when the API reports it.
+- `dn version` names DecisionNode SDK specification 1.5.
+
 ## [0.3.0] - 2026-10-22
 
 - Knowledge: keep your own policies, procedures and briefs in a knowledge base, and have a decision apply them. `dn collections create NAME --type text` makes one, with `--scope-key` to scope documents to a mission, a site or a customer.
